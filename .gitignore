@@ -1,0 +1,5 @@
+dl/
+competitions/
+cache/
+api_token.txt
+.*.sw*
