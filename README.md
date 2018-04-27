@@ -1,9 +1,9 @@
 This is a Python 3 example consumer of the Rode0day API
 
 # Installation
-`git clone https://github.com/AndrewFasano/simple-crs.git`
-`cd simple-crs`
-Save your API key into `api_key.txt`
+1. `git clone https://github.com/AndrewFasano/simple-crs.git`
+2. `cd simple-crs`
+3. Save your API key into `api_key.txt`
 
 
 # Features
