@@ -113,7 +113,7 @@ def test_run(challenge, status=None):
     input_file  = os.path.join(local_dir, challenge["sample_inputs"][0])
     args        = challenge["binary_arguments"].format(input_file=input_file, install_dir=local_dir)
     command     = "LD_PRELOAD_DIR={library_dir} {binary} {args}".format(library_dir=library_dir, binary=binary, input_file=input_file, args=args)
-    logger.info("Running with sample input: {}".format(command))
+    logger.info("Locally running with sample input: {}".format(command))
     os.system(command)
 
 
@@ -130,7 +130,7 @@ def submit_solution(file_path, challenge_id, status=None):
     if challenge_id not in status["challenge_ids"]:
         raise ValueError("Can't submit for challenge with id {} since it's not a part of the current competition ({})".format(challenge_id, status["challenge_ids"]))
 
-    with open(file_path) as f:
+    with open(file_path, "rb") as f:
         input_file = f.read()
     r = requests.post(API_BASE+"submit", data={"challenge_id": challenge_id}, files={"input": input_file})
     r.raise_for_status()
@@ -150,14 +150,14 @@ def submit_solution(file_path, challenge_id, status=None):
             first = False
             if bug in result["first_ids"]:
                 first = True
+                firsts.append(bug)
             if bug not in cache.keys():
                 cache[bug] = {"first": first, "found_at": datetime.now()}
                 new_bugs.append(bug)
-                firsts.append(bug)
 
         if len(new_bugs):
-            firsts_str = "(firsts: {})".format(', '.join(map(str,firsts)) if len(firsts) else "")
-            logger.info("Found new bug(s): {} {}".format(', '.join(map(str,new_bugs)), first_str))
+            firsts_str = ("(firsts: {})".format(', '.join(map(str,firsts)))) if len(firsts) else ""
+            logger.info("Found new bug(s) for challenge {}: {} {}".format(challenge_id, ', '.join(map(str,new_bugs)), firsts_str))
             logger.info("Score is now {}".format(result["score"]))
 
             # Update cache
@@ -171,6 +171,7 @@ def submit_solution(file_path, challenge_id, status=None):
 
 
     logger.debug("%d API requests remaining", result["requests_remaining"])
+    return result["bug_ids"]
 
 def main():
     status = get_status()
@@ -180,7 +181,7 @@ def main():
         #print(challenge, challenge_name)
         test_run(challenge, status)
 
-        # TODO: find bugs
+        # TODO: find bugs, submit those inputs and not this file
 
         submit_solution("crs.py", challenge["challenge_id"])
             
