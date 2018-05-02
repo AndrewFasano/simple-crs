@@ -218,9 +218,13 @@ def _start_afl(challenge):
 
     logger.info("AFL started with command: %s", fuzz_command)
     my_env = os.environ.copy()
-    with open(os.devnull, 'w') as devnull:
-        my_env["LD_PRELOAD_DIR"] = library_dir
-        subprocess.run(shlex.split(fuzz_command), stdout=devnull, stderr=subprocess.STDOUT, env=my_env)
+
+    my_env["LD_PRELOAD_DIR"] = library_dir
+    try:
+        subprocess.check_output(shlex.split(fuzz_command), stderr=subprocess.STDOUT, env=my_env)
+    except subprocess.CalledProcessError as e:
+        logger.error(e.output)
+        raise
 
 def _submit_loop(path, challenge_id):
     while True:
