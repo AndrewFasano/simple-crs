@@ -260,7 +260,7 @@ def compete():
         # Join threads with timeout corresponding to end of competition
         # The join is blocking so we calculate the delta_t right before the call to join
         delta_t = status['end']-datetime.utcnow()
-        thread.join(delta_t.seconds)
+        thread.join(delta_t.total_seconds())
 
 def main():
     # While there's a competition happening, try to find solutions until we finish or time runs out
@@ -281,7 +281,7 @@ def main():
         if status['rode0day_id'] in finished:
             logger.info("Finished with competition %d, sleeping until next starts at %s", status['rode0day_id'], str(status['end']))
             delta_t = status['end']-datetime.utcnow()
-            time.sleep(delta_t.seconds)
+            time.sleep(delta_t.total_seconds())
             continue
 
         compete()
