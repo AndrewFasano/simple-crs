@@ -48,7 +48,20 @@ def get_status(force_reload=False):
             raise
 
     r = requests.get(API_BASE+"latest.yaml")
-    r.raise_for_status()
+    try:
+        r.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 400:
+            logger.error("Server couldn't process request: %s", e.response.text)
+            raise
+        error = yaml.load(r.text)
+        logger.warning("API Error %d: %s", error["status"], error["status_str"])
+        if error["status"] == 7:
+            logger.warning("Sleeping for a minute...")
+            time.sleep(60)
+            return get_status(force_reload)
+        else:
+            return None
 
     try:
         data = yaml.load(r.text)
@@ -78,7 +91,20 @@ def get_competition(status=None):
     if not os.path.isfile(dl_path):
         logger.debug("Download %s into %s", dl_gz, dl_path)
         dl_tar = requests.get(dl_gz, stream=True)
-        dl_tar.raise_for_status()
+        try:
+            dl_tar.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 400:
+                logger.error("Server couldn't process request: %s", e.response.text)
+                raise
+            error = yaml.load(r.text)
+            logger.warning("API Error %d: %s", error["status"], error["status_str"])
+            if error["status"] == 7:
+                logger.warning("Sleeping for a minute...")
+                time.sleep(60)
+                return get_competition(status)
+            else:
+                return None
         with open(dl_path, "wb") as f:
             shutil.copyfileobj(dl_tar.raw, f)
 
@@ -151,7 +177,20 @@ def submit_solution(file_path, challenge_id, status=None):
     with open(file_path, "rb") as f:
         input_file = f.read()
     r = requests.post(API_BASE+"submit", data={"challenge_id": challenge_id}, files={"input": input_file})
-    r.raise_for_status()
+    try:
+        r.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 400:
+            logger.error("Server couldn't process request: %s", e.response.text)
+            raise
+        error = yaml.load(r.text)
+        logger.warning("API Error %d: %s", error["status"], error["status_str"])
+        if error["status"] == 7:
+            logger.warning("Sleeping for a minute...")
+            time.sleep(60)
+            return submit_solution(file_path, challenge_id, status)
+        else:
+            return None
     result = yaml.load(r.text)
 
     cache["submitted_files"].append(file_path)
