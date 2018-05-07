@@ -6,7 +6,7 @@ This Python 3 script is an example consumer of the Rode0day API. It will automat
 1. `cd simple-crs`
 1. `mkvirtualenv --python=\`which python3\` crs`
 1. `pip install -r requirements.txt`
-1. Save your API key provied at https://rode0day.mit.edu/profile into `api\_key.txt`
+1. Save your API key provied at https://rode0day.mit.edu/profile into `api_key.txt`
 
 To enable afl-support you must also build AFL in qemu\_mode as described in [AFL's README](https://github.com/mirrorer/afl/blob/master/qemu_mode/README.qemu) and place the afl-fuzz binary is on your $PATH.
 
