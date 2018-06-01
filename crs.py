@@ -17,7 +17,7 @@ import requests
 API_TOKEN = open("api_token.txt").read().strip()
 CACHE_DIR = "cache"
 COMP_DIR  = "competitions"
-API_BASE  = "https://rode0day.mit.edu/api/{}/".format(API_TOKEN)
+API_BASE  = "https://rode0day.mit.edu/api/1.0/"
 
 logging.basicConfig(format='%(levelname)s:\t%(message)s')
 logger = logging.getLogger(__name__)
@@ -30,6 +30,8 @@ for x in [COMP_DIR, CACHE_DIR]:
     if not os.path.exists(x):
         os.makedirs(x)
 
+assert(len(API_TOKEN))
+
 def get_status(force_reload=False):
     """
     Get status from /latest.yaml, save to CACHE_DIR/latest.yaml locally
@@ -40,6 +42,9 @@ def get_status(force_reload=False):
     if os.path.isfile(latest_path) and not force_reload:
         try:
             data = pickle.load(open(latest_path, "rb"))
+            if not data["rode0day_id"]:
+                logger.warning("No rode0day_id cached- refresh")
+                return get_status(True)
             if datetime.utcnow() < data['end']:
                 logger.debug("Using cached status becaue %s < %s", datetime.utcnow(), data['end'])
                 return data
@@ -51,22 +56,17 @@ def get_status(force_reload=False):
     try:
         r.raise_for_status()
     except requests.exceptions.HTTPError as e:
-        if e.response.status_code == 400:
-            logger.error("Server couldn't process request: %s", e.response.text)
-            raise
-        error = yaml.load(r.text)
-        logger.warning("API Error %d: %s", error["status"], error["status_str"])
-        if error["status"] == 7:
-            logger.warning("Sleeping for a minute...")
-            time.sleep(60)
-            return get_status(force_reload)
-        else:
-            return None
+        logger.error("HTTP Error loading status: %s", e.response.text)
+        return None
 
     try:
         data = yaml.load(r.text)
     except pickle.PickleError:
         logger.error("Could not load status, got message: %s", r.text)
+        return None
+
+    if not data["rode0day_id"]:
+        logger.warning("No Rode0day id provied, returning None")
         return None
 
     with open(latest_path, "wb") as f:
@@ -94,17 +94,8 @@ def get_competition(status=None):
         try:
             dl_tar.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 400:
-                logger.error("Server couldn't process request: %s", e.response.text)
-                raise
-            error = yaml.load(r.text)
-            logger.warning("API Error %d: %s", error["status"], error["status_str"])
-            if error["status"] == 7:
-                logger.warning("Sleeping for a minute...")
-                time.sleep(60)
-                return get_competition(status)
-            else:
-                return None
+            logger.error("HTTP Error getting competition binaries: %s", e.response.text)
+            return None
         with open(dl_path, "wb") as f:
             shutil.copyfileobj(dl_tar.raw, f)
 
@@ -176,13 +167,10 @@ def submit_solution(file_path, challenge_id, status=None):
 
     with open(file_path, "rb") as f:
         input_file = f.read()
-    r = requests.post(API_BASE+"submit", data={"challenge_id": challenge_id}, files={"input": input_file})
+    r = requests.post(API_BASE+"submit", data={"challenge_id": challenge_id, "auth_token": API_TOKEN}, files={"input": input_file})
     try:
         r.raise_for_status()
     except requests.exceptions.HTTPError as e:
-        if e.response.status_code == 400:
-            logger.error("Server couldn't process request: %s", e.response.text)
-            raise
         error = yaml.load(r.text)
         logger.warning("API Error %d: %s", error["status"], error["status_str"])
         if error["status"] == 7:
@@ -190,6 +178,7 @@ def submit_solution(file_path, challenge_id, status=None):
             time.sleep(60)
             return submit_solution(file_path, challenge_id, status)
         else:
+            logger.warning("API Error %d: %s", error["status"], error["status_str"])
             return None
     result = yaml.load(r.text)
 
@@ -312,8 +301,18 @@ def main():
             time.sleep(60)
             continue
 
+        if not status['rode0day_id']:
+            if "next_start" in status.keys():
+                logger.info("No active competition, sleeping until next starts at %s", str(status["next_start"]))
+                delta_t = status['next_start']-datetime.utcnow()
+                time.sleep(delta_t.total_seconds())
+            else:
+                logger.error("No active competition and unknown next start. Sleeping for 1 hour")
+                time.sleep(60*60)
+                continue
+
         if datetime.utcnow() > status['end']:
-            logger.debug("Provied status if for an endex competition, retrying in 1 minute ")
+            logger.debug("Provied status is for an ended competition, retrying in 1 minute ")
             time.sleep(60)
             continue
 
