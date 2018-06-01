@@ -45,7 +45,7 @@ def get_status(force_reload=False):
             if not data["rode0day_id"]:
                 logger.warning("No rode0day_id cached- refresh")
                 return get_status(True)
-            if datetime.utcnow() < data['end']:
+            if 'end' in data.keys() and datetime.utcnow() < data['end']:
                 logger.debug("Using cached status becaue %s < %s", datetime.utcnow(), data['end'])
                 return data
         except pickle.PickleError:
@@ -65,6 +65,9 @@ def get_status(force_reload=False):
         logger.error("Could not load status, got message: %s", r.text)
         return None
 
+    if 'rode0day_id' not in data.keys():
+        logger.error("Invalid response from api (missing rode0day_id): %s", data)
+        return None
     if not data["rode0day_id"]:
         logger.warning("No Rode0day id provied, returning None")
         return None
@@ -96,6 +99,7 @@ def get_competition(status=None):
         except requests.exceptions.HTTPError as e:
             logger.error("HTTP Error getting competition binaries: %s", e.response.text)
             return None
+
         with open(dl_path, "wb") as f:
             shutil.copyfileobj(dl_tar.raw, f)
 
@@ -154,7 +158,11 @@ def submit_solution(file_path, challenge_id, status=None):
 
     cache_pickle = os.path.join(CACHE_DIR, str(challenge_id)+".pickle")
     if os.path.isfile(cache_pickle):
-        cache = pickle.load(open(cache_pickle, "rb"))
+        try:
+            cache = pickle.load(open(cache_pickle, "rb"))
+        except (EOFError, pickle.PickleError):
+            logger.error("Couldn't write to %s. Skipping submission of %s for now", cache_pickle, file_path)
+
     else:
         cache = {}
 
@@ -180,6 +188,7 @@ def submit_solution(file_path, challenge_id, status=None):
         else:
             logger.warning("API Error %d: %s", error["status"], error["status_str"])
             return None
+
     result = yaml.load(r.text)
 
     cache["submitted_files"].append(file_path)
@@ -225,6 +234,7 @@ def _start_afl(challenge):
     Launch subprocess running afl-fuzz in qemu mode
     Translate file input and stdin into the right syntax for AFL
     """
+
     status = get_status()
     now_ms = int(round(time.time()*1000))
 
@@ -294,6 +304,7 @@ def main():
     # While there's a competition happening, try to find solutions until we finish or time runs out
     # Then move on to the next competition
     finished = []
+
     while True:
         status=get_status()
         if not status:
@@ -317,8 +328,8 @@ def main():
             continue
 
         if status['rode0day_id'] in finished:
-            logger.info("Finished with competition %d, sleeping until next starts at %s", status['rode0day_id'], str(status['end']))
             delta_t = status['end']-datetime.utcnow()
+            logger.info("Finished with competition %d, sleeping until next starts at %s (in %d seconds)", status['rode0day_id'], str(status['end']), delta_t.total_seconds())
             time.sleep(delta_t.total_seconds())
             continue
 
