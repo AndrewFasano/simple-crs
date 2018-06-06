@@ -137,7 +137,7 @@ def test_run(challenge, status=None):
     binary      = os.path.join(local_dir, challenge["binary_path"])
     input_file  = os.path.join(local_dir, challenge["sample_inputs"][0])
     args        = challenge["binary_arguments"].format(input_file=input_file, install_dir=local_dir)
-    command     = "LD_PRELOAD_DIR={library_dir} {binary} {args}".format(library_dir=library_dir, binary=binary, args=args)
+    command     = "LD_LIBRARY_PATH={library_dir} {binary} {args}".format(library_dir=library_dir, binary=binary, args=args)
     logger.info("Locally running with sample input: %s", command)
     os.system(command)
 
@@ -251,17 +251,18 @@ def _start_afl(challenge):
     else:
         args    = challenge["binary_arguments"].format(install_dir=local_dir, input_file="@@") # Input file name @@ is replaced by AFL with the fuzzed filename
 
-    bin_command     = "{binary} {args}".format(binary=binary, args=args)
-    fuzz_command = "afl-fuzz -Q -i {input_dir} -o {output_dir} -- {bin_command}".format(input_dir=input_dir, output_dir=output_dir, bin_command=bin_command)
+    bin_command  = "{binary} {args}".format(binary=binary, args=args)
+    fuzz_command = "afl-fuzz -Q -i {input_dir} -o {output_dir} -- {bin_command}".format(library_dir=library_dir, input_dir=input_dir, output_dir=output_dir, bin_command=bin_command)
 
     logger.info("AFL started with command: %s", fuzz_command)
     my_env = os.environ.copy()
 
-    my_env["LD_PRELOAD_DIR"] = library_dir
+    my_env["LD_LIBRARY_PATH"] = library_dir # TODO - this doesn't work
     try:
         subprocess.check_output(shlex.split(fuzz_command), stderr=subprocess.STDOUT, env=my_env)
     except subprocess.CalledProcessError as e:
         logger.error(e.output)
+        print("Error while running:\n\t LD_LIBRARY_PATH={} {}".format(my_env["LD_LIBRARY_PATH"], fuzz_command))
         raise
 
 def _submit_loop(path, challenge_id):
