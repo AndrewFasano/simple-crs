@@ -18,6 +18,10 @@ API_TOKEN = open("api_token.txt").read().strip()
 CACHE_DIR = "cache"
 COMP_DIR  = "competitions"
 API_BASE  = "https://rode0day.mit.edu/api/1.0/"
+AFL_PATH = "/home/andrew/git/afl/afl-fuzz" # Change to the location of afl-fuzz on your system
+
+if not os.path.isfile(AFL_PATH):
+    raise RuntimeError("You must update your AFL_PATH to the the location of afl-fuzz")
 
 logging.basicConfig(format='%(levelname)s:\t%(message)s')
 logger = logging.getLogger(__name__)
@@ -252,17 +256,27 @@ def _start_afl(challenge):
         args    = challenge["binary_arguments"].format(install_dir=local_dir, input_file="@@") # Input file name @@ is replaced by AFL with the fuzzed filename
 
     bin_command  = "{binary} {args}".format(binary=binary, args=args)
-    fuzz_command = "afl-fuzz -Q -i {input_dir} -o {output_dir} -- {bin_command}".format(library_dir=library_dir, input_dir=input_dir, output_dir=output_dir, bin_command=bin_command)
+    fuzz_command = "{afl_path} -Q -m 4098 -i {input_dir} -o {output_dir} -- {bin_command}".format(afl_path=AFL_PATH, library_dir=library_dir, input_dir=input_dir, output_dir=output_dir, bin_command=bin_command)
 
     logger.info("AFL started with command: %s", fuzz_command)
-    my_env = os.environ.copy()
 
-    my_env["LD_LIBRARY_PATH"] = library_dir # TODO - this doesn't work
+    # We'll copy these all into the subprocess env, but this way we can print the things we've changed if there's an error
+    custom_env={}
+    custom_env["QEMU_SET_ENV"] = "LD_LIBRARY_PATH={}".format(library_dir)
+    custom_env["AFL_INST_LIBS"] = "1"
+
+
+# AFL_INST_LIBS=1 QEMU_SET_ENV=LD_LIBRARY_PATH=$(pwd)/lib ~/git/afl/afl-fuzz -m 4192 -Q -i inputs/ -o output_test -- bin/file -m share/misc/magic.mgc @@
+
+    my_env = os.environ.copy()
+    for k,v in custom_env.items():
+        my_env[k] = v
+
     try:
         subprocess.check_output(shlex.split(fuzz_command), stderr=subprocess.STDOUT, env=my_env)
     except subprocess.CalledProcessError as e:
         logger.error(e.output)
-        print("Error while running:\n\t LD_LIBRARY_PATH={} {}".format(my_env["LD_LIBRARY_PATH"], fuzz_command))
+        print("Error while running:\n\t {} {}\n\n".format(" ".join(["{}={}".format(k, v) for k,v in custom_env.items()]), fuzz_command))
         raise
 
 def _submit_loop(path, challenge_id):
