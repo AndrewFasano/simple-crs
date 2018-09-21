@@ -4,7 +4,7 @@ This Python 3 script is an example consumer of the Rode0day API. It will automat
 ## Installation
 1. `git clone https://github.com/AndrewFasano/simple-crs.git`
 1. `cd simple-crs`
-1. `mkvirtualenv --python=\`which python3\` crs`
+1. `mkvirtualenv --python=$(which python3) crs`
 1. `pip install -r requirements.txt`
 1. Save your API key provied at https://rode0day.mit.edu/profile into `api_key.txt`
 
