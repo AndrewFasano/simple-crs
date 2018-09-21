@@ -73,7 +73,10 @@ def get_status(force_reload=False):
         logger.error("Invalid response from api (missing rode0day_id): %s", data)
         return None
     if not data["rode0day_id"]:
-        logger.warning("No Rode0day id provied, returning None")
+        if data["next_start"]:
+            return data
+
+        logger.warning("No Rode0day id or next_start provied, returning None")
         return None
 
     with open(latest_path, "wb") as f:
@@ -338,9 +341,10 @@ def main():
 
         if not status['rode0day_id']:
             if "next_start" in status.keys():
-                logger.info("No active competition, sleeping until next starts at %s", str(status["next_start"]))
+                logger.info("No active competition, sleeping until next starts at %s UTC", str(status["next_start"]))
                 delta_t = status['next_start']-datetime.utcnow()
                 time.sleep(delta_t.total_seconds())
+                continue
             else:
                 logger.error("No active competition and unknown next start. Sleeping for 1 hour")
                 time.sleep(60*60)
