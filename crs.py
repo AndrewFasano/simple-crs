@@ -196,6 +196,7 @@ def submit_solution(file_path, challenge_id, status=None):
             return submit_solution(file_path, challenge_id, status)
         else:
             logger.warning("API Error %d: %s", error["status"], error["status_str"])
+            time.sleep(10)
             return None
 
     result = yaml.load(r.text)
@@ -271,7 +272,7 @@ def _start_afl(challenge):
     custom_env={}
     if library_dir:
         custom_env["QEMU_SET_ENV"] = "LD_LIBRARY_PATH={}".format(library_dir)
-    custom_env["AFL_INST_LIBS"] = "1"
+        custom_env["AFL_INST_LIBS"] = "1"
 
 
 # AFL_INST_LIBS=1 QEMU_SET_ENV=LD_LIBRARY_PATH=$(pwd)/lib ~/git/afl/afl-fuzz -m 4192 -Q -i inputs/ -o output_test -- bin/file -m share/misc/magic.mgc @@
