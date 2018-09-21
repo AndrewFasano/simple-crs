@@ -137,11 +137,16 @@ def test_run(challenge, status=None):
         status = get_status()
 
     local_dir   = os.path.join('', *[COMP_DIR, str(status["rode0day_id"]), challenge["install_dir"]])
-    library_dir = os.path.join(local_dir, challenge["library_dir"])
+    library_dir = None
+    if "library_dir" in challenge.keys():
+        library_dir = os.path.join(local_dir, challenge["library_dir"])
     binary      = os.path.join(local_dir, challenge["binary_path"])
     input_file  = os.path.join(local_dir, challenge["sample_inputs"][0])
     args        = challenge["binary_arguments"].format(input_file=input_file, install_dir=local_dir)
-    command     = "LD_LIBRARY_PATH={library_dir} {binary} {args}".format(library_dir=library_dir, binary=binary, args=args)
+    if library_dir:
+        command     = "LD_LIBRARY_PATH={library_dir} {binary} {args}".format(library_dir=library_dir, binary=binary, args=args)
+    else:
+        command     = "{binary} {args}".format(binary=binary, args=args)
     logger.info("Locally running with sample input: %s", command)
     os.system(command)
 
@@ -243,7 +248,9 @@ def _start_afl(challenge):
     now_ms = int(round(time.time()*1000))
 
     local_dir   = os.path.join('', *[COMP_DIR, str(status["rode0day_id"]), challenge["install_dir"]])
-    library_dir = os.path.join(local_dir, challenge["library_dir"])
+    library_dir = None
+    if "library_dir" in challenge.keys():
+        library_dir = os.path.join(local_dir, challenge["library_dir"])
     binary      = os.path.join(local_dir, challenge["binary_path"])
     input_dir   = os.path.dirname(os.path.join(local_dir, challenge["sample_inputs"][0])) # Assuming all input files are in the same directory
     output_dir  = os.path.join('', *[COMP_DIR, str(status["rode0day_id"]), challenge["install_dir"], "outputs_"+str(now_ms)])
@@ -262,7 +269,8 @@ def _start_afl(challenge):
 
     # We'll copy these all into the subprocess env, but this way we can print the things we've changed if there's an error
     custom_env={}
-    custom_env["QEMU_SET_ENV"] = "LD_LIBRARY_PATH={}".format(library_dir)
+    if library_dir:
+        custom_env["QEMU_SET_ENV"] = "LD_LIBRARY_PATH={}".format(library_dir)
     custom_env["AFL_INST_LIBS"] = "1"
 
 
