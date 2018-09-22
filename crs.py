@@ -253,7 +253,11 @@ def _start_afl(challenge):
         args    = challenge["binary_arguments"].format(install_dir=local_dir, input_file="@@") # Input file name @@ is replaced by AFL with the fuzzed filename
 
     bin_command     = "{binary} {args}".format(binary=binary, args=args)
-    fuzz_command = "afl-fuzz -Q -i {input_dir} -o {output_dir} -- {bin_command}".format(input_dir=input_dir, output_dir=output_dir, bin_command=bin_command)
+    testcases_dir   = os.path.join(local_dir, "testcases")
+
+    testcase_cmd = "./consts.sh {} {}".format(binary, testcases_dir)
+    fuzz_command = "afl-fuzz -Q -d -i {input_dir} -o {output_dir} -x {testcases_dir} -- {bin_command}".format(input_dir=input_dir, output_dir=output_dir, bin_command=bin_command, testcases_dir=testcases_dir)
+
 
     logger.info("AFL started with command: %s", fuzz_command)
     my_env = os.environ.copy()
@@ -290,7 +294,8 @@ def compete():
         fuzz_threads.append(t)
 
         # Start submission thread watching AFL output
-        output_path = "./competitions/{}/{}/outputs_*/crashes/*".format(info["rode0day_id"], challenge["install_dir"])
+        #output_path = "./competitions/{}/{}/outputs_*/crashes/*".format(info["rode0day_id"], challenge["install_dir"])
+        output_path = "./competitions/{}/{}/outputs_consts/*/crashes/*".format(info["rode0day_id"], challenge["install_dir"]) # TODO- this is for multi
         t2 = threading.Thread(target=_submit_loop, args=(output_path, challenge["challenge_id"],))
         t2.daemon = True
         t2.start()
