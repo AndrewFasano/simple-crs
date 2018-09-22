@@ -3,3 +3,5 @@ competitions/
 cache/
 api_token.txt
 .*.sw*
+*.pyc
+output.ppm
