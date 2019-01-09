@@ -349,8 +349,10 @@ def main():
                 logger.error("No active competition and unknown next start. Sleeping for 1 hour")
                 time.sleep(60*60)
                 continue
+        if 'end' not in status:
+            logger.warning("Provied status is missing end time, will continuing bug-finding forever")
 
-        if datetime.utcnow() > status['end']:
+        if 'end' in status and datetime.utcnow() > status['end']:
             logger.debug("Provied status is for an ended competition, retrying in 1 minute ")
             time.sleep(60)
             continue
