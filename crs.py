@@ -242,7 +242,7 @@ def submit_solution(file_path, challenge_id, status=None):
     return result["bug_ids"]
 
 
-def _start_afl(challenge):
+def _start_afl(challenge, extra_args=None):
     """
     Launch subprocess running afl-fuzz in qemu mode
     Translate file input and stdin into the right syntax for AFL
@@ -267,7 +267,9 @@ def _start_afl(challenge):
         args    = challenge["binary_arguments"].format(install_dir=local_dir, input_file="@@") # Input file name @@ is replaced by AFL with the fuzzed filename
 
     bin_command  = "{binary} {args}".format(binary=binary, args=args)
-    fuzz_command = "{afl_path} -Q -m 4098 -i {input_dir} -o {output_dir} -- {bin_command}".format(afl_path=AFL_PATH, library_dir=library_dir, input_dir=input_dir, output_dir=output_dir, bin_command=bin_command)
+    fuzz_command = "{afl_path} -Q -m 4098 -i {input_dir} -o {output_dir} {extra} -- {bin_command}".format(afl_path=AFL_PATH, library_dir=library_dir,
+                                                                                                    input_dir=input_dir, output_dir=output_dir, bin_command=bin_command,
+                                                                                                    extra=extra_args if extra_args else "")
 
     logger.info("AFL started with command: %s", fuzz_command)
 
@@ -310,7 +312,10 @@ def compete():
         #test_run(challenge, status)
 
         # Start fuzzer thread
-        t = threading.Thread(target=_start_afl, args=(challenge,))
+        extra_args = ""
+        if "jq" in challenge_name: 
+            extra_args += "-t 10000"
+        t = threading.Thread(target=_start_afl, args=(challenge,extra_args,))
         t.daemon = True
         t.start()
         fuzz_threads.append(t)
